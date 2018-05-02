@@ -6,6 +6,11 @@ import SimpleModelDecoder
 import string
 import datetime
 import numpy as np
+import NCF
+import JNTM
+import SERM
+import DSSM
+
 
 hour_gap = 6
 valid_portion = 0.1
@@ -327,11 +332,23 @@ if __name__ == "__main__":
     '''
     task = 0
     model = 0
-    mod = 0
+    mod = 2
     iter = 0
+    print "1:JNTM 2:SERM 3:NCF 4:DSSM"
+    temp = int(input('which baseline'))
     if task == 0:
         if model == 0:
-            attention_model_enhance.train(dl,small_path, dataset, iter_start=iter, mod=mod)
+            #attention_model_enhance.train(dl,small_path, dataset, iter_start=iter, mod=mod)
+            if temp == 1:
+                #JNTM.train(dl,3555,500)
+                JNTM.train(dl,small_path)
+            elif temp == 2:
+                SERM.train(dl,small_path)
+            elif temp == 3:
+                NCF.train(dl,small_path,dataset)
+            elif temp ==4:
+                DSSM.train(dl,small_path,dataset)
+
         elif model == 1:
             SimpleModelDecoder.train(dl,small_path, dataset, iter_start=iter, mod=mod)
     else:
