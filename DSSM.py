@@ -41,7 +41,10 @@ class SpatioTemporalModel(nn.Module):
         self.embedder_v_context = nn.Embedding(self.v_size, self.hidden_dim * 2 + self.emb_dim_u + self.emb_dim_t)
 
     def forward(self, records_u, is_train, mod=0):
-        predicted_scores = Variable(torch.zeros(records_u.get_predicting_records_cnt(mod=0), 1)) if is_train else []
+        #predicted_scores = Variable(torch.zeros(records_u.get_predicting_records_cnt(mod=0), 1)) if is_train else []
+        predicted_scores = Variable(
+            torch.zeros(records_u.get_predicting_records_cnt(mod=0), self.nb_cnt + 1)) if is_train else Variable(
+            torch.zeros(records_u.get_predicting_records_cnt(mod=2), self.v_size))
         rid_vids_true = []
         rid_vids = []
         vids_visited = set()
@@ -50,7 +53,8 @@ class SpatioTemporalModel(nn.Module):
         emb_u = self.embedder_u(Variable(torch.LongTensor([records_u.uid])).view(1, -1)).view(1, -1)
         hidden_long = self.init_hidden()
         idx = 0
-        for rid, record in enumerate(records_al[: -1]):
+        for rid, record in enumerate(records_al[0: len(records_al) - 1]):
+        #for rid, record in enumerate(records_al[: -1]):
             if record.is_first:
                 hidden_short = self.init_hidden()
             vids_visited.add(record.vid)
@@ -71,7 +75,7 @@ class SpatioTemporalModel(nn.Module):
                     rid_vids_true.append(record.vid_next)
                     vid_candidates = self.get_vids_candidate(records_u.uid, rid, record.vid_next, vids_visited, False, False)
                     scores = Variable(torch.zeros(1, self.v_size))
-                    predicted_scores.append([])
+                    #predicted_scores.append([])
                 else:
                     continue
             for vid_idx, vid_candidate in enumerate(vid_candidates):
@@ -121,10 +125,10 @@ class SpatioTemporalModel(nn.Module):
         return Variable(torch.zeros(1, self.hidden_dim))
 
 
-def train(root_path, dataset, n_iter=500, iter_start=0, mod=0):
+def train(dl,root_path, dataset, n_iter=80, iter_start=0, mod=0):
     torch.manual_seed(0)
     random.seed(0)
-    dl = pickle.load(open(root_path + 'dl_' + dataset + '.pk', 'rb'))
+    #dl = pickle.load(open(root_path + 'dl_' + dataset + '.pk', 'rb'))
     model = SpatioTemporalModel(dl.nu, dl.nv, dl.nt, sampling_list=dl.sampling_list, vid_coor_rad=dl.vid_coor_rad, vid_pop=dl.vid_pop)
     if iter_start != 0:
         model.load_state_dict(torch.load(root_path + 'model_dssm_' + str(mod) + '_' + str(iter_start) + '.md'))
@@ -137,7 +141,7 @@ def train(root_path, dataset, n_iter=500, iter_start=0, mod=0):
         for idx, uid in enumerate(uids):
             records_u = dl.uid_records[uid]
             optimizer.zero_grad()
-            predicted_probs, _, _ = model(records_u, is_train=True, mod=mod)
+            predicted_probs, _, _ = model(records_u, is_train=False, mod=mod)
             loss = criterion(predicted_probs)
             loss.backward()
             print_loss_total += loss.data[0]

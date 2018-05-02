@@ -45,7 +45,10 @@ class SpatioTemporalModelNCF(nn.Module):
         self.ff3 = nn.Linear(dim_merged / 4, 1)
 
     def forward(self, records_u, is_train, mod=0):
-        predicted_scores = Variable(torch.zeros(records_u.get_predicting_records_cnt(mod=0), self.nb_cnt + 1)) if is_train else []
+        #predicted_scores = Variable(torch.zeros(records_u.get_predicting_records_cnt(mod=0), self.nb_cnt + 1)) if is_train else []
+        predicted_scores = Variable(
+            torch.zeros(records_u.get_predicting_records_cnt(mod=0), self.nb_cnt + 1)) if is_train else Variable(
+            torch.zeros(records_u.get_predicting_records_cnt(mod=2), self.v_size))
         rid_vids_true = []
         rid_vids = []
         vids_visited = set()
@@ -76,8 +79,9 @@ class SpatioTemporalModelNCF(nn.Module):
                     rid_vids_true.append(record.vid_next)
                     vid_candidates = self.get_vids_candidate(records_u.uid, rid, record.vid_next, vids_visited, False,
                                                              False if mod == 0 else True)
-                    scores = Variable(torch.zeros(1, self.size if mod == 0 else len(vid_candidates)))
-                    predicted_scores.append([])
+                    #scores = Variable(torch.zeros(1, self.size if mod == 0 else len(vid_candidates)))
+                    scores = Variable(torch.zeros(1, len(vid_candidates)))
+                    #predicted_scores.append([])
                     rid_vids.append(vid_candidates)
                 else:
                     continue
@@ -134,10 +138,10 @@ class SpatioTemporalModelNCF(nn.Module):
         return Variable(torch.zeros(1, self.hidden_dim))
 
 
-def train(root_path, dataset, n_iter=500, iter_start=0, mod=0):
+def train(dl,root_path, dataset, n_iter=500, iter_start=0, mod=0):
     torch.manual_seed(0)
     random.seed(0)
-    dl = pickle.load(open(root_path + 'dl_' + dataset + '.pk', 'rb'))
+    #dl = pickle.load(open(root_path + 'dl_' + dataset + '.pk', 'rb'))
     model = SpatioTemporalModelNCF(dl.nu, dl.nv, dl.nt, sampling_list=dl.sampling_list, vid_coor_rad=dl.vid_coor_rad, vid_pop=dl.vid_pop)
     if iter_start != 0:
         model.load_state_dict(torch.load(root_path + 'model_ncf_' + str(mod) + '_' + str(iter_start) + '.md'))
@@ -150,7 +154,7 @@ def train(root_path, dataset, n_iter=500, iter_start=0, mod=0):
         for idx, uid in enumerate(uids):
             records_u = dl.uid_records[uid]
             optimizer.zero_grad()
-            predicted_probs, _, _ = model(records_u, is_train=True, mod=mod)
+            predicted_probs, _, _ = model(records_u, is_train=False, mod=mod)
             loss = criterion(predicted_probs)
             loss.backward()
             print_loss_total += loss.data[0]
